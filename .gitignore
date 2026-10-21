@@ -1,0 +1,17 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary Office lock files
+~$*.docx
+~$*.doc
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# OS generated files
+Thumbs.db
+.DS_Store
