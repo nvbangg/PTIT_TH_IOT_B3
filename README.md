@@ -26,7 +26,9 @@ PTIT_TH_IOT_B3/
 ├── bai1/
 │   ├── coap_server_bai1.py      # CoAP Server bài 1
 │   └── coap_client_bai1.py      # CoAP Client bài 1
-├── bai2/                         # (Các bài tiếp theo)
+├── bai2/
+│   ├── sensor_server_bai2.py    # Cảm biến cập nhật mỗi 3 giây
+│   └── monitor_client_bai2.py   # Giám sát, CSV và thống kê
 ├── bai3/
 ├── .gitignore
 └── README.md
@@ -152,3 +154,60 @@ Payload: Xin chao tu CoAP Client - B23DCCN001 - Nguyen Van A
 - [x] Client gửi thành công cả GET và POST, hiển thị đúng định dạng.
 - [x] Triển khai đầy đủ các gợi ý mở rộng: lưu payload gần nhất, kiểm tra 4.04 Not Found, xử lý lỗi timeout khi Server ngắt kết nối.
 - [x] Tương thích tốt trên Windows và Linux/macOS.
+
+---
+
+## 5. Bài 2: Cảm biến nhiệt độ và độ ẩm bằng CoAP
+
+Đã triển khai yêu cầu chính và đủ 5 gợi ý mở rộng:
+
+- Server mô phỏng `sensor01`, `sensor02`, `sensor03`, cập nhật độc lập mỗi 3 giây: nhiệt độ 20–40°C, độ ẩm 30–80%.
+- Mỗi thiết bị có URI `coap://127.0.0.1:5683/iot/lab/<device_id>/data` (UDP). GET trả mã `2.05 Content`, Content-Format `50` (`application/json`).
+- JSON gồm `device_id`, `temperature`, `humidity`, `timestamp` (thời gian cập nhật cảm biến, ISO 8601 có múi giờ).
+- Client chọn thiết bị bằng `--device`, GET mỗi 3 giây; cảnh báo khi nhiệt độ > 35°C hoặc độ ẩm < 40%; in thời điểm nhận và trạng thái bình thường nếu không có cảnh báo.
+- Dữ liệu hợp lệ được ghi nối tiếp vào `bai2/sensor_data.csv`, không ghi đè dữ liệu cũ. Các cột: `device_id,temperature,humidity,timestamp,received_at,response_ms`.
+- Thống kê mỗi lượt và khi dừng: số GET đã gửi, số phản hồi nhận được, thời gian phản hồi trung bình (ms). Trung bình tính trên mọi phản hồi CoAP nhận được, kể cả phản hồi lỗi; không tính timeout/lỗi kết nối. Chưa có phản hồi thì hiển thị `N/A`.
+- Client báo lỗi khi server không phản hồi sau 5 giây hoặc trả dữ liệu không hợp lệ, rồi tiếp tục giám sát; chỉ ghi dữ liệu hợp lệ vào CSV.
+
+### Cách chạy (Windows)
+
+Mở terminal tại thư mục gốc repo. Dừng server Bài 1 trước vì dùng chung cổng `5683`.
+
+1. Cài môi trường (một lần):
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\python.exe -m pip install aiocoap
+   ```
+2. Terminal 1 — chạy server cho cả 3 cảm biến:
+   ```powershell
+   .\.venv\Scripts\python.exe -u bai2/sensor_server_bai2.py
+   ```
+3. Terminal 2 — chọn cảm biến cần giám sát:
+   ```powershell
+   .\.venv\Scripts\python.exe -u bai2/monitor_client_bai2.py --device sensor02
+   ```
+   Có thể chọn `sensor01`, `sensor02`, `sensor03`; mặc định là `sensor01`.
+4. Nhấn `Ctrl+C` tại từng terminal để dừng; client in thống kê tổng kết. Mỗi lần chạy lại, bộ đếm bắt đầu từ 0 và CSV tiếp tục được ghi nối tiếp.
+
+### Kết quả chạy thực tế
+
+Windows, Python `3.14.2`, `aiocoap 0.4.17`. Trích output client chọn `sensor02`:
+
+```text
+[11:28:48] Received sensor data
+Device: sensor02
+Temperature: 39.3 C
+Humidity: 42.9 %
+Timestamp: 2026-10-24T11:28:46+07:00
+CANH BAO: Nhiet do cao
+GET: 1 | Responses: 1 | Avg response: 4.249 ms
+------------------------------
+[11:28:51] Received sensor data
+Device: sensor02
+Temperature: 28.0 C
+Humidity: 73.4 %
+Timestamp: 2026-10-24T11:28:49+07:00
+Trang thai: Binh thuong
+GET: 2 | Responses: 2 | Avg response: 3.585 ms
+------------------------------
+```
